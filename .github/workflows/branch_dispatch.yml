@@ -76,6 +76,29 @@ jobs:
         run: |
           sudo apt-get install jq
 
+      # 1. Automatic authentication using "installation access token" of Github App needs
+      # inputs of the App ID and the App private key. Here's an example of automating authentication
+      # with Github App:
+      # https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/automating-projects-using-actions
+      # 2. The App ID and App private key are stored as action secrets of the repository.
+      # Collaborators of public fork of a personal account won't have access to these secrets, even
+      # though they have write permissions of the fork. The secrets are accessible for users with
+      # "maint"
+      # 3. This third-party Github Action repo is used in the above example of the official Github
+      # doc. To prevent future updates of the Action repo to change behaviors and posing security
+      # risks, explicity use the commit hash of the most recent stable release (v1.8.0) to freeze
+      # the used code.
+      # * v1.8.0 of the third-party Action repo:
+      #   https://github.com/tibdex/github-app-token/tree/releases/v1.8.0
+
+      - name: Generate a token
+        id: generate_token
+        uses: tibdex/github-app-token@b62528385c34dbc9f38e5f4225ac829252d1ea92
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          installation_id: ${{ secrets.APP_INSTALLATION_ID }}
+          private_key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Create environment variables
         run: |
           if [[ "${{ github.event_name }}" == "repository_dispatch" ]];
@@ -83,13 +106,15 @@ jobs:
             echo "sender_repo=${{ github.event.client_payload.repository }}" >> $GITHUB_ENV && \
             echo "sender_repo_owner=${{ github.event.client_payload.owner }}" >> $GITHUB_ENV && \
             echo "sender_repo_ref=${{ github.event.client_payload.ref_name }}" >> $GITHUB_ENV && \
-            echo "commit_message=${{ github.event.client_payload.commit_message }}" >> $GITHUB_ENV
+            msg=$( echo "${{ github.event.client_payload.commit_message }}" | tr '\n' ' ' ) && \
+            echo "commit_message=$msg" >> $GITHUB_ENV
           elif [[ "${{ github.event_name }}" == "push" ]];
           then
             echo "sender_repo=${{ github.repository }}" >> $GITHUB_ENV && \
             echo "sender_repo_owner=${{ github.repository_owner }}" >> $GITHUB_ENV && \
             echo "sender_repo_ref=${{ github.ref_name }}" >> $GITHUB_ENV && \
-            echo "commit_message=${{ github.event.head_commit.message }}" >> $GITHUB_ENV
+            msg=$( echo "${{ github.event.head_commit.message }}" | tr '\n' ' ' ) && \
+            echo "commit_message=$msg">> $GITHUB_ENV
           elif [[ "${{ github.event_name }}" == "pull_request" ]];
           then
             echo "sender_repo=${{ github.event.pull_request.head.repo.owner.login }}/${{ github.event.pull_request.head.repo.name }}" >> $GITHUB_ENV && \
@@ -102,22 +127,28 @@ jobs:
       # the commit message directly via the github API.
       # See https://github.com/orgs/community/discussions/28474
       - name: Checkout commit sha (Pull Request only)
-        if: ${{ github.event_name }} == "pull_request"
+        if: github.event_name == 'pull_request'
         uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Get commit mesage (Pull Request only)
-        if: ${{ github.event_name }} == "pull_request"
+        if: github.event_name == 'pull_request'
         run: |
-          echo "commit_message=$(git show -s --format=%s)" >> $GITHUB_ENV
+          echo "commit_message="'"$(git show -s --format=%s)"'"" >> $GITHUB_ENV
 
+      # Although the GET request doesn't need permission for reading public info for public
+      # repositories, the Authorization header is still recommended to increase Github REST API
+      # rate limit. Unauthorized requests currently have a rate limit of 60 per hour per repo, while
+      # the limit for authroized requests is 5000.
       - name: Check existance of forks and branches of workflow-inference-compiler
+        env:
+          APP_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
           if curl -L \
              -H "Accept: application/vnd.github+json" \
              -H "X-GitHub-Api-Version: 2022-11-28" \
-             -u ${{ secrets.ACCESS_TOKEN }} \
+             -H "Authorization: Bearer $APP_TOKEN" \
              https://api.github.com/repos/${{ env.sender_repo_owner }}/workflow-inference-compiler/branches | jq '.[].name' | grep "${{ env.sender_repo_ref }}";
           then
             echo "wic_owner=${{ env.sender_repo_owner }}" >> $GITHUB_ENV && \
@@ -129,11 +160,13 @@ jobs:
 
       # For other repositories, the entire step below should be copied and edited to make new steps.
       - name: Check existance of forks and branches of mm-workflows
+        env:
+          APP_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
           if curl -L \
              -H "Accept: application/vnd.github+json" \
              -H "X-GitHub-Api-Version: 2022-11-28" \
-             -u ${{ secrets.ACCESS_TOKEN }} \
+             -H "Authorization: Bearer $APP_TOKEN" \
              https://api.github.com/repos/${{ env.sender_repo_owner }}/mm-workflows/branches | jq '.[].name' | grep "${{ env.sender_repo_ref }}";
           then
             echo "mm-workflows_owner=${{ env.sender_repo_owner }}" >> $GITHUB_ENV && \
@@ -144,13 +177,15 @@ jobs:
           fi
 
       - name: Branch dispatch build_and_test.yml
+        env:
+          APP_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
-          if [[ "${{ secrets.ACCESS_TOKEN }}" != '' ]];
+          if [[ "$APP_TOKEN" != '' ]];
           then
             curl -X POST https://api.github.com/repos/${{ github.repository }}/actions/workflows/build_and_test.yml/dispatches \
             -H 'Accept: application/vnd.github+json' \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            -u ${{ secrets.ACCESS_TOKEN }} \
+            -H "Authorization: Bearer $APP_TOKEN" \
             --data '{"ref": "'"${{ env.wic_ref }}"'", "inputs": { "event_type": "${{ github.event_name }}", "commit_message": "'"${{ env.commit_message }}"'", "sender_repo": "'"${{ env.sender_repo }}"'", "mm-workflows_owner": "'"${{ env.mm-workflows_owner }}"'", "mm-workflows_ref": "'"${{ env.mm-workflows_ref }}"'" }}'
           else
             echo "Error! secrets.ACCESS_TOKEN is not defined! (or expired)" && \
@@ -168,13 +203,15 @@ jobs:
         # i.e. If this API call fails, probably all the others will fail as well.
 
       - name: Branch dispatch build_and_run_workflows.yml
+        env:
+          APP_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
-          if [[ "${{ secrets.ACCESS_TOKEN }}" != '' ]];
+          if [[ "$APP_TOKEN" != '' ]];
           then
             curl -X POST https://api.github.com/repos/${{ github.repository }}/actions/workflows/build_and_run_workflows.yml/dispatches \
             -H 'Accept: application/vnd.github+json' \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            -u ${{ secrets.ACCESS_TOKEN }} \
+            -H "Authorization: Bearer $APP_TOKEN" \
             --data '{"ref": "'"${{ env.wic_ref }}"'", "inputs": { "event_type": "${{ github.event_name }}", "commit_message": "'"${{ env.commit_message }}"'", "sender_repo": "'"${{ env.sender_repo }}"'", "mm-workflows_owner": "'"${{ env.mm-workflows_owner }}"'", "mm-workflows_ref": "'"${{ env.mm-workflows_ref }}"'" }}'
           else
             echo "Error! secrets.ACCESS_TOKEN is not defined! (or expired)" && \
