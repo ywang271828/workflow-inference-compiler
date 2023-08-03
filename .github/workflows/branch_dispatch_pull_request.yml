@@ -1,7 +1,10 @@
 name: Branch Dispatch
 
 on:
-  pull_request_target:
+  workflow_run:
+    workflows: [Event Receiver]
+    types:
+      - completed
 
 permissions:
   actions: read
@@ -16,6 +19,21 @@ jobs:
       - name: Install JQ for parsing JSON
         run: |
           sudo apt-get install jq
+
+      # To use this repository's private action,
+      # you must check out the repository
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # 1. "workflow_run" does not allow passing variables through event payload. Therefore, we
+      # have to save the information about the PR in artifacts.
+      # 2. The default Github action for downloading artifacts only works for jobs within the same
+      # workflow. Use a customized scripts to download and parse the artifacts here.
+      - name: Download JSON artifact from event_receiver.yml
+        uses: ./.github/my_actions/download_artifact/
+        id: get_artifact
+        with:
+          workflow_run_id: ${{ github.event.workflow_run.id }}
 
       # See comments in token.md
       - name: Generate a token
@@ -33,9 +51,9 @@ jobs:
                   -H "X-GitHub-Api-Version: 2022-11-28" \
                   -H "Authorization: Bearer $APP_TOKEN" \
                   https://api.github.com/repos/${{ github.repository }}/collaborators \
-                  | jq '.[].login' | grep "${{ github.event.sender.login }}";
+                  | jq '.[].login' | grep "${{ steps.get_artifact.sender_repo_owner }}";
           then
-            echo "Account ${{ github.event.sender.login }} doesn't have the permission to run ${{ github.event.action }}!" \
+            echo "Account ${{ steps.get_artifact.sender_repo_owner }} doesn't have the permission to run ${{ steps.get_artifact.sender_repo_owner }}!" \
               && false;
           fi
 
@@ -51,7 +69,7 @@ jobs:
       - name: Checkout commit sha (Pull Request only)
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ steps.get_artifact.head_sha }}
 
       - name: Get commit mesage (Pull Request only)
         run: |
@@ -62,8 +80,8 @@ jobs:
         id: ce_wic
         with:
           repository: workflow-inference-compiler
-          sender_repo_owner: ${{ github.event.pull_request.head.repo.owner.login }}
-          sender_repo_ref: ${{ github.event.pull_request.head.ref }}
+          sender_repo_owner: ${{ steps.get_artifact.sender_repo_owner }}
+          sender_repo_ref: ${{ steps.get_artifact.sender_repo_ref }}
           default_owner: PolusAI
           default_branch: master
           access_token: ${{ steps.generate_token.outputs.token }}
@@ -74,8 +92,8 @@ jobs:
         id: ce_mm-workflows
         with:
           repository: mm-workflows
-          sender_repo_owner: ${{ github.event.pull_request.head.repo.owner.login }}
-          sender_repo_ref: ${{ github.event.pull_request.head.ref }}
+          sender_repo_owner: ${{ steps.get_artifact.sender_repo_owner }}
+          sender_repo_ref: ${{ steps.get_artifact.sender_repo_ref }}
           default_owner: PolusAI
           default_branch: main
           access_token: ${{ steps.generate_token.outputs.token }}
@@ -86,10 +104,10 @@ jobs:
         with:
           repository: workflow-inference-compiler
           workflow_yml: build_and_test.yml
-          sender_repo: ${{ github.event.pull_request.head.repo.owner.login }}/${{ github.event.pull_request.head.repo.name }}
+          sender_repo: ${{ steps.get_artifact.sender_repo_owner }}/${{ steps.get_artifact.sender_repo_name }}
           sender_repo_owner: ${{ steps.ce_wic.outputs.owner }}
           sender_repo_ref: ${{ steps.ce_wic.outputs.ref }}
-          event_type: ${{ github.event_name }}
+          event_type: ${{ steps.get_artifact.event_name }}
           commit_message: ${{ env.commit_message }}  # NOTE: This may still be susceptible to script injection attacks.
           mm_workflows_owner: ${{ steps.ce_mm-workflows.outputs.owner }}
           mm_workflows_ref: ${{ steps.ce_mm-workflows.outputs.ref }}
@@ -101,10 +119,10 @@ jobs:
         with:
           repository: workflow-inference-compiler
           workflow_yml: build_and_run_workflows.yml
-          sender_repo: ${{ github.event.pull_request.head.repo.owner.login }}/${{ github.event.pull_request.head.repo.name }}
+          sender_repo: ${{ steps.get_artifact.sender_repo_owner }}/${{ steps.get_artifact.sender_repo_name }}
           sender_repo_owner: ${{ steps.ce_wic.outputs.owner }}
           sender_repo_ref: ${{ steps.ce_wic.outputs.ref }}
-          event_type: ${{ github.event_name }}
+          event_type: ${{ steps.get_artifact.event_name }}
           commit_message: ${{ env.commit_message }}  # NOTE: This may still be susceptible to script injection attacks.
           mm_workflows_owner: ${{ steps.ce_mm-workflows.outputs.owner }}
           mm_workflows_ref: ${{ steps.ce_mm-workflows.outputs.ref }}

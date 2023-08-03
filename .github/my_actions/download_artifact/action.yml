@@ -1,0 +1,31 @@
+# See https://docs.github.com/en/actions/creating-actions/creating-a-javascript-action
+name: 'Upload Artifacts'
+description: 'Upload artifacts'
+inputs:
+  workflow_run_id:
+    description: 'Run ID of the workflow to download artifacts from'
+    type: string
+    required: true
+  repo_owner:
+    description: 'The username of the owner of the repository'
+    type: string
+    required: true
+  repo_name:
+    description: 'The name of the repository only (without owner)'
+    type: string
+    required: true
+
+outputs:
+  event_name:
+    description: 'The name of the event'
+  head_sha:
+    description: 'The sha code of the head commit'
+  sender_repo_owner:
+    description: 'The name of the repository owner'
+  sender_repo_ref:
+    description: 'The name of the branch / ref'
+  sender_repo_name:
+    description: 'The name of the repository only (without owner)'
+runs:
+  using: 'node16'
+  main: 'dist/index.js'
