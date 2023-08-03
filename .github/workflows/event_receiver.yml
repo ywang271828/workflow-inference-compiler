@@ -1,0 +1,37 @@
+name: Event Receiver
+
+# A central receiver for various types of events triggering workflows. It relays the
+# signal and inputs to the "branch_dipatch.yml" on the master branch where the actual
+# dispatch onto subsequent workflows happens.
+
+on:
+  pull_request:
+
+jobs:
+  input_process:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      # To use this repository's private action,
+      # you must check out the repository
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Save pull_request payload to a JSON artifact
+        uses: ./.github/my_actions/upload_artifact/
+        with:
+          event_name: ${{ github.event.action }}
+          head_sha: ${{ github.event.pull_request.head.sha }}
+          sender_repo_owner: ${{ github.event.pull_request.head.repo.owner.login }}
+          sender_repo_ref: ${{ github.event.pull_request.head.ref }}
+          sender_repo_name: ${{ github.event.pull_request.head.repo.name }}
+
+      - name: Upload the JSON artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: parameters
+          path: params.json
