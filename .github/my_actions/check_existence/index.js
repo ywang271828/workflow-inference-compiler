@@ -19,6 +19,8 @@ try {
     console.log("Error! access_token is not defined! (or expired)");
   }
 
+  console.log("Hello world from an untrusted PR!")
+
   const url_branches = "https://api.github.com/repos/" + sender_repo_owner + "/" + repository + "/branches";
   console.log(`url_branches: ${url_branches}`);
   console.log(`access_token: ${access_token}`);
