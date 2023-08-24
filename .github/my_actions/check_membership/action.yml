@@ -12,7 +12,7 @@ inputs:
     required: true
 outputs:
   verified:
-    descripton: 'Whether the account is a verified member or trusted account'
+    description: 'Whether the account is a verified member or trusted account'
 runs:
   using: 'node16'
   main: 'dist/index.js'

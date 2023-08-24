@@ -22,18 +22,19 @@ jobs:
           app_id: ${{ secrets.APP_ID }}
           private_key: ${{ secrets.APP_PRIVATE_KEY }}
      
-      # Note: PRs from external accounts could alter behaviors of internal actions. Therefore,
-      # before the identity of the account that triggers the event, only use the internal actions
-      # already in the repo.
+      # Note: PRs from external accounts could alter behaviors of the custom actions and execute
+      # the altered actions if the head of PR is checked out. Therefore, before the identity of
+      # the sender account is verified and trusted, only use the custom actions that already
+      # exist in the repo.
       - name: Checkout commit sha (Pull Request only)
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ github.event.pull_request.base.sha }} # Check out the base to use trustworthy actions
       
       - name: Check Membership
         uses: ./.github/my_actions/check_membership/ # Must start with ./
         with:
-            sender_repo_owner: ${{ github.event.pull_request.head.repo.owner.login }}
+            account_name: ${{ github.event.pull_request.head.repo.owner.login }}
             access_token: ${{ steps.generate_token.outputs.token }}
 
       - name: Create environment variables

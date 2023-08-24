@@ -24,10 +24,17 @@ jobs:
           app_id: ${{ secrets.APP_ID }}
           private_key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      # To use this repository's private action,
-      # you must check out the repository
+      # Note: 1. To use this repository's private action, you must check out the repository
+      # 2. The "repository_dispatch" only trigger a workflow on the default branch (i.e. master/main).
+      # So the checked out custom actions should be trustworthy.
       - name: Checkout
         uses: actions/checkout@v3
+
+      - name: Check Membership
+        uses: ./.github/my_actions/check_membership/ # Must start with ./
+        with:
+          account_name: ${{ github.event.client_payload.owner }}
+          access_token: ${{ steps.generate_token.outputs.token }}
 
       - name: Check existence of wic
         uses: ./.github/my_actions/check_existence/ # Must start with ./

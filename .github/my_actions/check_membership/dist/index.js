@@ -54,8 +54,11 @@ try {
 
   if (!verified && github.context.repo.owner === 'PolusAI') {
     // Step 3: Check whether the account is a member of the PolusAI.
-    // This step will only be run when the workflow is currenlty running on PolusAI. Otherwise,
-    // the access_token would be invalid anyway.
+    // This step will only be run when the workflow is currenlty running on PolusAI, which is an
+    // org account. The above endpoint repos/{owner}/{repo}/collaborators/{account} can also checks
+    // membership but only when the member is a direct collaborator of the org-owned repo, or has
+    // access through team memberships or default org permissions. To be safe, use the explicit
+    // membership-check endpoint.
     
     // GitHub API doc: https://docs.github.com/en/rest/orgs/members?apiVersion=2022-11-28#check-organization-membership-for-a-user
     const url = `https://api.github.com/orgs/PolusAI/members/${account_name}`
@@ -81,6 +84,10 @@ try {
   // Get the JSON webhook payload for the event that triggered the workflow
   const payload = JSON.stringify(github.context.payload, undefined, 2)
   console.log(`The event payload: ${payload}`);
+
+  if (!verified) {
+    throw new Error(`Account ${account_name} does not pass the verification!`);
+  }
 } catch (error) {
   core.setFailed(error.message);
 }
