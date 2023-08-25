@@ -83,7 +83,7 @@ try {
   console.log(`The event payload: ${payload}`);
 
   if (!verified) {
-    throw new Error(`Account ${account_name} does not pass the verification!`);
+    throw new Error(`Account ${account_name} is not authorized to run workflows.`);
   }
 } catch (error) {
   core.setFailed(error.message);
