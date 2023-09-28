@@ -3,7 +3,7 @@ from pathlib import Path
 import unittest
 
 import graphviz
-from hypothesis import given, settings, HealthCheck
+from hypothesis import given, settings, HealthCheck, seed
 import networkx as nx
 import pytest
 
@@ -23,6 +23,7 @@ class TestFuzzyCompile(unittest.TestCase):
 
     @pytest.mark.slow
     @given(wic_strategy)
+    @seed(1234)
     @settings(max_examples=100,
               suppress_health_check=[HealthCheck.too_slow,
                                      HealthCheck.filter_too_much],
