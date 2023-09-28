@@ -11,6 +11,8 @@ import graphviz
 from jsonschema import RefResolver, Draft202012Validator
 from referencing import Registry, Resource
 from referencing.jsonschema import DRAFT202012
+from jsonschema import Draft202012Validator
+import fastjsonschema
 
 import yaml
 
@@ -547,7 +549,7 @@ def compile_workflow_generate_schema(homedir: str,
 
 
 def get_validator(tools_cwl: Tools, yml_stems: List[str], schema_store: Dict[str, Json] = {},
-                  write_to_disk: bool = False, hypothesis: bool = False) -> Draft202012Validator:
+                  write_to_disk: bool = False, hypothesis: bool = False) -> Any:
     """Generates the main schema used to check the yml files for correctness and returns a validator.
 
     Args:
@@ -590,14 +592,16 @@ def get_validator(tools_cwl: Tools, yml_stems: List[str], schema_store: Dict[str
     messages and fail in less obvious or consistent ways.'
     """
 
-    resource: Resource = Resource.from_contents(contents=schema, default_specification=DRAFT202012)
-    registry = Registry().with_resource(uri=schema["$id"], resource=resource)
+    # resource: Resource = Resource.from_contents(contents=schema, default_specification=DRAFT202012)
+    # registry = Registry().with_resource(uri=schema["$id"], resource=resource)
     # i.e. This should match 'https://json-schema.org/draft/2020-12/schema'
     # NOTE: If you get nasty errors while developing the schema such as:
     # "jsonschema.exceptions.SchemaError: ... is not valid under any of the given schemas"
     # try temporarily commenting this line out to generate the schema anyway.
     # Then, in any yml file, the very first line should show a "schema stack trace"
-    Draft202012Validator.check_schema(schema)
-    validator = Draft202012Validator(schema, resolver=resolver)
+    # Draft202012Validator.check_schema(schema)
+    # validator = Draft202012Validator(schema, resolver=resolver)
     # validator = Draft202012Validator(schema, registry=registry)
+
+    validator = fastjsonschema.compile(schema)
     return validator
