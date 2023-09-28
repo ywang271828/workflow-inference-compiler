@@ -158,7 +158,7 @@ def cwl_type_to_jsonschema_type(type_obj: Json) -> Json:
 
 
 def cwl_schema(name: str, cwl: Json, id_prefix: str) -> Json:
-    """Generates a schema (including documentation) based on the inputs of a CWL CommandLineTool or Workflow.
+    """Generates a schema (including documentation) based on the inputs and outputs of a CWL CommandLineTool or Workflow.
 
     Args:
         name (str): The name of the CWL CommandLineTool or Workflow
