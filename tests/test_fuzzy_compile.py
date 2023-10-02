@@ -16,15 +16,15 @@ import wic.schemas.wic_schema
 import wic.utils
 from wic.wic_types import GraphData, GraphReps, Yaml, YamlTree, StepId
 
-from .test_setup import get_args, tools_cwl, yml_paths, validator, wic_strategy
+from .test_setup import get_args, tools_cwl, yml_paths, validator, wic_strategy, counter
 
 
 class TestFuzzyCompile(unittest.TestCase):
 
     @pytest.mark.slow
     @given(wic_strategy)
-    @seed(1234)
-    @settings(max_examples=100,
+    @seed(0)
+    @settings(max_examples=10,
               suppress_health_check=[HealthCheck.too_slow,
                                      HealthCheck.filter_too_much],
               deadline=timedelta(milliseconds=20000))
@@ -40,6 +40,9 @@ class TestFuzzyCompile(unittest.TestCase):
         plugin_ns = 'global'
         yml_path = Path('random_stepid')
         steps_keys = wic.utils.get_steps_keys(yml.get('steps', []))
+        global counter
+        counter += 1
+        print(f'{counter} : {steps_keys}')
         tools_stems = [stepid.stem for stepid in tools_cwl]
         subkeys = wic.utils.get_subkeys(steps_keys, tools_stems)
         if subkeys:

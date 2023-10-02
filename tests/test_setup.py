@@ -16,6 +16,7 @@ import wic.schemas
 import wic.schemas.wic_schema
 import wic.utils
 from wic.wic_types import Json, Yaml
+import random
 
 
 def get_args(yaml_path: str = '') -> argparse.Namespace:
@@ -76,6 +77,8 @@ def wic_yaml_filter_backends_or_steps(yml: Yaml) -> bool:
     return ('backends' in yml or 'steps' in yml)
 
 
+counter = 0
+random.seed(1)
 time_initial = time.time()
 
 wic_schema = wic.schemas.wic_schema.wic_main_schema(tools_cwl, yaml_stems, schema_store, hypothesis=True)

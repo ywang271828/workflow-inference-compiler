@@ -147,7 +147,7 @@ def run_local(args: argparse.Namespace, rose_tree: RoseTree, cachedir: Optional[
                 print(f'See error_{yaml_stem}.txt for detailed technical information.')
                 # Do not display a nasty stack trace to the user; hide it in a file.
                 with open(f'error_{yaml_stem}.txt', mode='w', encoding='utf-8') as f:
-                    traceback.print_exception(etype=type(e), value=e, tb=None, file=f)
+                    traceback.print_exception(type(e), value=e, tb=None, file=f)
                 if not cachedir:  # if running on CI
                     print(e)
 
