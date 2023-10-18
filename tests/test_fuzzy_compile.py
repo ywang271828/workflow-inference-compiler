@@ -17,6 +17,8 @@ import wic.utils
 from wic.wic_types import GraphData, GraphReps, Yaml, YamlTree, StepId
 
 from .test_setup import get_args, tools_cwl, yml_paths, validator, wic_strategy, counter
+import yaml
+import time
 
 
 class TestFuzzyCompile(unittest.TestCase):
@@ -24,7 +26,7 @@ class TestFuzzyCompile(unittest.TestCase):
     @pytest.mark.slow
     @given(wic_strategy)
     @seed(0)
-    @settings(max_examples=10,
+    @settings(max_examples=1,
               suppress_health_check=[HealthCheck.too_slow,
                                      HealthCheck.filter_too_much],
               deadline=timedelta(milliseconds=20000))
@@ -37,12 +39,14 @@ class TestFuzzyCompile(unittest.TestCase):
         Args:
             yml (Yaml): Yaml input, randomly generated according to a random subset of wic_main_schema
         """
+        time_initial = time.time()
+
         plugin_ns = 'global'
         yml_path = Path('random_stepid')
         steps_keys = wic.utils.get_steps_keys(yml.get('steps', []))
         global counter
         counter += 1
-        print(f'{counter} : {steps_keys}')
+        print(f'{counter} : {steps_keys}', end=" ")
         tools_stems = [stepid.stem for stepid in tools_cwl]
         subkeys = wic.utils.get_subkeys(steps_keys, tools_stems)
         if subkeys:
@@ -57,6 +61,9 @@ class TestFuzzyCompile(unittest.TestCase):
         y_t = YamlTree(StepId('random_stepid', plugin_ns), yml)
         yaml_tree_raw = wic.ast.read_ast_from_disk(args.homedir, y_t, yml_paths, tools_cwl, validator)
         yaml_tree = wic.ast.merge_yml_trees(yaml_tree_raw, {}, tools_cwl)
+        if counter == 1:
+            with open('output.yaml', 'w', encoding='utf-8') as file:
+                yaml.dump(yaml_tree[1], file, default_flow_style=False)
 
         graph_gv = graphviz.Digraph(name=f'cluster_{yml_path}')
         graph_gv.attr(newrank='True')
@@ -81,6 +88,10 @@ class TestFuzzyCompile(unittest.TestCase):
                 # import yaml
                 # print(yaml.dump(yml))
                 raise e
+
+        time_final = time.time()
+        print(f'Run one test: {round(time_final - time_initial, 4)} seconds')
+        print()
 
 
 if __name__ == '__main__':

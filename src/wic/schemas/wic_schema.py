@@ -8,6 +8,7 @@ from typing import Any, Dict, List
 
 import networkx as nx
 import graphviz
+from jsonschema import RefResolver
 # from jsonschema import RefResolver, Draft202012Validator
 # from referencing import Registry, Resource
 # from referencing.jsonschema import DRAFT202012

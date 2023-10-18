@@ -14,5 +14,7 @@
     "[yaml]": {
         "editor.suggest.showWords": false
     },
-    "notebook.output.textLineLimit": 100
+    "notebook.output.textLineLimit": 100,
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
 }
