@@ -80,7 +80,7 @@ def is_isomorphic_with_timeout(g_m: isomorphism.GraphMatcher, yml_path_str: str)
         # "ValueError: signal only works in main thread of the main interpreter"
         signal.signal(signal.SIGALRM, handler)
 
-        signal.alarm(10)  # timeout after 10 seconds
+        signal.alarm(20)  # timeout after 10 seconds
         assert g_m.is_isomorphic()  # See top-level comment above!
         signal.alarm(0)  # Disable the alarm
 

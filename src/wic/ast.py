@@ -397,7 +397,8 @@ def apply_args(sub_yml_tree: Yaml, sub_parentargs: Yaml) -> Yaml:
         # we cannot blindly inline the subworkflow and remove the ~'s in the subworkflow.
         # TODO: Consider adding wic metadata tags to cause inference to skip past the beginning of the subworkflow.
         if argkey not in sub_parentargs.get('in', {}):
-            print(f'Warning! Inlineing {argkey} with explicit inputs: in the subworkflow but edge inference in the parent workflow is not supported.')
+            print(f'Warning! Inlineing {argkey} with explicit inputs: in the subworkflow' +
+                  'but edge inference in the parent workflow is not supported.')
 
     for argkey, argval in sub_parentargs.get('in', {}).items():
         print(f'argkey, argval', argkey, argval)
@@ -411,7 +412,10 @@ def apply_args(sub_yml_tree: Yaml, sub_parentargs: Yaml) -> Yaml:
             # if steps[i][step_key] and 'in' in steps[i][step_key]:
             #     args_provided = list(steps[i][step_key]['in'])
 
-            in_step = steps[i][step_key]['in']
+            if ".yml" in step_key:
+                in_step = steps[i][step_key].get('parentargs', {}).get('in', {})
+            else:
+                in_step = steps[i][step_key].get('in', {})
             for inputkey, inputval in in_step.items():
                 if inputval == '~' + argkey:
                     # overwrite ~ syntax / apply argval
