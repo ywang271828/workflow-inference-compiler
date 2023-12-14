@@ -392,6 +392,8 @@ def apply_args(sub_yml_tree: Yaml, sub_parentargs: Yaml) -> Yaml:
 
     steps = sub_yml_tree['steps']
     steps_keys = utils.get_steps_keys(steps)
+    scattervars = sub_parentargs.get('scatter', [])
+    scatterMethod = sub_parentargs.get('scatterMethod', None)
 
     for argkey in inputs_workflow:
         # Ordinarily edge inference works across subworkflow boundaries (i.e. is inlineing invariant),
@@ -418,10 +420,28 @@ def apply_args(sub_yml_tree: Yaml, sub_parentargs: Yaml) -> Yaml:
                 # Subworkflows should have ['parentargs']['in'] (if any)
                 in_step = steps[i][step_key].get('parentargs', {}).get('in', {})
 
+            scattervars_new = []
             for inputkey, inputval in in_step.items():
                 if inputval == '~' + argkey:
                     # overwrite ~ syntax / apply argval
                     in_step[inputkey] = argval
+                    if argkey in scattervars:
+                        scattervars_new.append(inputkey)
+
+            # NOTE: If we want to keep the one-to-one zipping of two arrays scattered using
+            # dotproduct but being used in two separate steps of a subworkflows, we might have to
+            # add the mapping indices somehow as an input variable to the later step. For now,
+            # we force user to write subworkflows where dotproduct scattering must be used
+            # in the same step of a subworkflow.
+            if len(scattervars_new) > 0 and len(scattervars_new) != len(scattervars) \
+                    and scatterMethod == "dotproduct":
+                print('Warning! Scattering dotproduct of multiple input variables into subworkflows' +
+                      f' can only be inlined when they are used at the same step! {step_key}')
+
+            if len(scattervars_new) > 0:
+                steps[i][step_key]['scatter'] = scattervars_new
+                if len(scattervars_new) > 1:
+                    steps[i][step_key]['scatterMethod'] = scatterMethod
 
     return sub_yml_tree
 
