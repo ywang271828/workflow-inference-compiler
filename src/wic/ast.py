@@ -540,6 +540,7 @@ def inline_subworkflow_cwl(rose_tree: RoseTree) -> RoseTree:
             count += 1  # Check that we inline all subworkflows
             inputs = steps[step_key]['in']
             scattervars = steps[step_key].get('scatter', [])
+            scatterMethod: str = steps[step_key].get('scatter', None)
 
             sub_cwl_tree = subkeysdict[step_key]
             sub_steps = sub_cwl_tree['steps']
@@ -588,6 +589,20 @@ def inline_subworkflow_cwl(rose_tree: RoseTree) -> RoseTree:
                                     else:
                                         substepval['scatter'] = [inputvarname]
 
+                        # The above regex might miss inputs for step 1 of subworkflows.
+                        # Double check to make sure the 'scatter' tag is passed successfully.
+                        if source in scattervars:  # 'source' in scattervars && 'source' in inputs
+                            if 'scatter' in substepval:
+                                if subinputkey not in substepval['scatter']:
+                                    substepval['scatter'] += [subinputkey]
+                                    # TODO: This might be wrong. We force an overwrite of the scatter
+                                    # method in the subworkflow with the method in the parent workflow.
+                                    if scatterMethod:
+                                        substepval['scatterMethod'] = scatterMethod
+                                    # Otherwise, use the default: 'nested_crossproduct'
+                            else:
+                                substepval['scatter'] = [subinputkey]
+
                     # Distribute scatter unconditionally across ALL subworkflow dependencies
                     # i.e. https://en.wikipedia.org/wiki/Distributive_property
 # NOTE: This code assumes the user has manually performed https://en.wikipedia.org/wiki/Loop-invariant_code_motion
@@ -601,9 +616,11 @@ def inline_subworkflow_cwl(rose_tree: RoseTree) -> RoseTree:
                             if 'scatter' in substepval:
                                 if subinputkey not in substepval['scatter']:
                                     substepval['scatter'] += [subinputkey]
+                                    # Only when there are multiple variables to be scattered over,
+                                    # do we need to modify the scatterMethod.
+                                    substepval['scatterMethod'] = 'dotproduct'
                             else:
                                 substepval['scatter'] = [subinputkey]
-                            substepval['scatterMethod'] = 'dotproduct'
 
                 # Overwrite inputs
                 substepval['in'] = substep_inputs_new
